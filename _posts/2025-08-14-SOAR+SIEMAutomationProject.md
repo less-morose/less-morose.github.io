@@ -50,7 +50,7 @@ On the Wazuh Manager GUI itself, I still need to define another index pattern th
 ![Desktop View](/assets/posts/SOARSIEM/wazuh-manager-index.png)
 The index goes through Wazuh's files, within its archives, and the '**' at the end defines everything within said archives.  
 
-## Ingesting Mimikatz Logs
+## Detecting Mimikatz 
 Now that the log ingestion is configured and ready to go, it is time to create a custom rule that detects specifically Mimikatz. Because all archies are ingested, I can select some random log to look at the attributes that Sysmon offers.
 ![Desktop View](/assets/posts/SOARSIEM/mimikatz-initial-log.png)
 The attributes in particular that I focused on are
@@ -59,5 +59,27 @@ The attributes in particular that I focused on are
 - data.win.system.eventID
 	- an eventID of 1 represents Process Creation. In properly made rules, this attributed used in tandem with other events contribute to process lineage to give insights on how the potential malware works or vulnerabilities within the environment.
 - data.win.eventdata.originalFileName 
-	- This will be used to circumvent spoofing the data.win.eventdata.image name 
+	- This will be used to circumvent spoofing the data.win.eventdata.image name.
 ![Desktop View](/assets/posts/SOARSIEM/mimikatz-attributes.png)
+
+### Rule Creation
+
+After scouring the rule templates provided by Wazuh, I came across not only templates for Sysmon, but rules that follow common ways to lock against certain eventID 1 events.
+![Desktop View](/assets/posts/SOARSIEM/mimikatz-rule-initial.png)
+![Desktop View](/assets/posts/SOARSIEM/mimikatz-rule-final.png)  
+
+I simply copy and pasted the existing rule and changed the following:
+- __rule id__ ->  +1 of the pre-existing custom rule
+- __level__ -> 'level' can go from 0-16. I made it 16 just for fun.
+- __field__ -> Line 21 (dotted in picture) tracks mimikatz (not case sensitive indicated by '(?i)' in the originalFileName)
+- __description__ -> Indicate that mimikatz is found on the user Agent
+- __mitre__ -> To reflect "OS Credential Dumping" (T1003)  
+
+Now, I can test my rule. 
+
+On the Windows 10 Wazuh Agent, I installed mimikatz and changed the name of the executable and ran it.
+![Desktop View](/assets/posts/SOARSIEM/mimikatz-rule-prerun.png)
+![Desktop View](/assets/posts/SOARSIEM/mimikatz-rule-postrun.png)  
+Note how the headers match the information I put into the rule, and how the image name does not match the originalFileName!  
+![Desktop View](/assets/posts/SOARSIEM/mimikatz-rule-header.png)
+![Desktop View](/assets/posts/SOARSIEM/mimikatz-rule-subheader.png)
