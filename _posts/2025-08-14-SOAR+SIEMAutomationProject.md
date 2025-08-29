@@ -75,6 +75,8 @@ I simply copy and pasted the existing rule and changed the following:
 - __description__ -> Indicate that mimikatz is found on the user Agent
 - __mitre__ -> To reflect "OS Credential Dumping" (T1003)  
 
+### Rule Testing
+
 Now, I can test my rule. 
 
 On the Windows 10 Wazuh Agent, I installed mimikatz and changed the name of the executable and ran it.
@@ -83,3 +85,83 @@ On the Windows 10 Wazuh Agent, I installed mimikatz and changed the name of the 
 Note how the headers match the information I put into the rule, and how the image name does not match the originalFileName!  
 ![Desktop View](/assets/posts/SOARSIEM/mimikatz-rule-header.png)
 ![Desktop View](/assets/posts/SOARSIEM/mimikatz-rule-subheader.png)
+
+## Shuffle (SOAR) Automation
+
+Now with the rule configured, for the sake of testing I can configure the Wazuh Manager to only push alerts with the Mimikatz Rule ID, 100002, to shuffle.
+Following these steps within this [Wazuh blog,](https://wazuh.com/blog/integrating-wazuh-with-shuffle/) I can copy the following code block into the ossec.conf file within the Wazuh Manager and replace the appropriate data.
+```bash
+<integration>
+  <name>shuffle</name>
+  <hook_url>http://<YOUR_SHUFFLE_URL>/api/v1/hooks/<HOOK_ID></hook_url>
+  <level>3</level>
+  <alert_format>json</alert_format>
+</integration>
+```
+
+### Shuffle Webhook URI
+
+![Desktop View](/assets/posts/SOARSIEM/shuffle-inital-uri.png){: w="425" .right }
+I then copy the Webhook URI provided from the Webhook App I added to the Shuffle workspace, replace the <hook_url>, and also replace the 'level' tag with the 'rule_id' tag with the Mimikatz Rule ID (100002), which is similar in formatting to the custom rule earlier.  
+
+![Desktop View](/assets/posts/SOARSIEM/shuffle-wazuhman-url.png)  
+To save the changes, I saved the ossec.conf file and restarted the service. Once that was done, I reran Mimikatz on the Wazuh Agent, and tested the workflow. If it worked, I would see the attributes I set within the Wazuh rule within Shuffle and I'd be able to take those attributes to be able to use them for the workflow.
+![Desktop View](/assets/posts/SOARSIEM/shuffle-initial-run.png)  
+
+### SHA256_Regex
+
+Within the aforementioned attributes, Wazuh automatically calculates the MD5, SHA256, and Import hashes of the file.
+![Desktop View](/assets/posts/SOARSIEM/shuffle-hash-attribute.png)  
+However, Wazuh puts all of these hashes on the same variable. Looking through the apps, the only way to get one checksum from the line is Regex code within a Shuffle Tools app. I don't know how to code in Regex, so I asked ChatGPT to only get the SHA256 sum from the input.
+![Desktop View](/assets/posts/SOARSIEM/shuffle-chatgpt.png)  
+
+<!-- ![Desktop View](/assets/posts/SOARSIEM/shuffle-virustotal-1.png){: w="250" .right } - Image may be unnecessary and takes too much space relative to the info it gives-->
+
+### VirusTotal
+
+![Desktop View](/assets/posts/SOARSIEM/shuffle-virustotal-2.png){: w="260" .right }
+I set the SHA256_Regex output to the VirusTotal app, but first I had to set up the authentication process for it. I created an account to get an API key used to authenticate the app. Through this app, similar to getting the attributes from the Mimikatz rule trigger, I can see the amount of vendors that list the mimikatz.exe as malicious, and its overall reputation score.  
+<br>
+
+<!--
+Reminder to delete these shuffle-virus-total 1 2 and 3
+
+![Desktop View](/assets/posts/SOARSIEM/shuffle-virustotal-3.png){: w="250" .left }  
+
+![Desktop View](/assets/posts/SOARSIEM/shuffle-virustotal-4.png){: w="225" .right }  
+
+-->
+<br>
+
+### TheHive
+
+Now to extend the workflow to create an alert on the TheHive manager. Before that, I need to create a new orginization, as well as two user accounts, one service account to establish the API key to connect to TheHive app, and the other one is a user account to receive the alerts I create and push through Shuffle. I used a pre-made profile which gives a variety positions. Note that in a real environment, this would be configured with the idea of least privilege, which is not a concern for this demo.
+![Desktop View](/assets/posts/SOARSIEM/shuffle-thehive-org.png)
+_'admin' organization is created by default. My Organization is the name I decided for mine._
+![Desktop View](/assets/posts/SOARSIEM/shuffle-thehive-users.png){: .right }  
+For the Analyst account, I made a password and once an alert is created and pushed by Shuffle, I would have logged into the account to see the user with the username 'myorganization@test.com'.
+On the left below, these are the initial settings I had. Testing the workflow I ran into the following issue on the right.
+![Desktop View](/assets/posts/SOARSIEM/shuffle-thehive-initial-settings.png){: w="" .left } 
+![Desktop View](/assets/posts/SOARSIEM/shuffle-thehive-initial-error.png){: w="400" .left }  
+<br> Looking for solutions, I browsed through the other settings and switched to the advanced tab which is all the inputs but formatted in JSON. This was a long and arduous process. I had to trial and error and figured out through searching up the error codes from TheHive app that they have documentation on required fields and their type of inputs [here.](https://docs.strangebee.com/thehive/api-docs/#tag/Alert/operation/Create%)  
+
+![Desktop View](/assets/posts/SOARSIEM/shuffle-thehive-initial-body.png)
+_Initial json_
+![Desktop View](/assets/posts/SOARSIEM/shuffle-thehive-final-body.png)
+_Final json_
+Running the workflow then logging into the Analyst user account on My Organization on TheHive website, it works!
+![Desktop View](/assets/posts/SOARSIEM/shuffle-thehive-alert.png)
+![Desktop View](/assets/posts/SOARSIEM/shuffle-thehive-alert-1.png)
+
+### Email Alerts
+
+![Desktop View](/assets/posts/SOARSIEM/shuffle-email-attribute.png){: w="200" .right }  
+This portion was the easiest. 3 easy-to-fill fields and I used the same attributes used within TheHive app configuration. I assume for Google or Outlook addresses there would have to be extra authentication. The follow are successful runs of not only the workflow, but the temporary email receiving it as well.
+![Desktop View](/assets/posts/SOARSIEM/shuffle-email-final-1.png){: .left }
+![Desktop View](/assets/posts/SOARSIEM/shuffle-email-final-2.png)
+
+### Final Shuffle Workflow
+
+![Desktop View](/assets/posts/SOARSIEM/shuffle-workflow-1.png)
+
+## Challenge - Configuring Active Response prompts to SSH Attack
