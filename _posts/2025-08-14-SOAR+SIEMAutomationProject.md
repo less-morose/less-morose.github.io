@@ -142,8 +142,9 @@ _'admin' organization is created by default. My Organization is the name I decid
 For the Analyst account, I made a password and once an alert is created and pushed by Shuffle, I would have logged into the account to see the user with the username 'myorganization@test.com'.
 On the left below, these are the initial settings I had. Testing the workflow I ran into the following issue on the right.
 ![Desktop View](/assets/posts/SOARSIEM/shuffle-thehive-initial-settings.png){: w="" .left } 
-![Desktop View](/assets/posts/SOARSIEM/shuffle-thehive-initial-error.png){: w="400" .left }  
-<br> Looking for solutions, I browsed through the other settings and switched to the advanced tab which is all the inputs but formatted in JSON. This was a long and arduous process. I had to trial and error and figured out through searching up the error codes from TheHive app that they have documentation on required fields and their type of inputs [here.](https://docs.strangebee.com/thehive/api-docs/#tag/Alert/operation/Create%)  
+![Desktop View](/assets/posts/SOARSIEM/shuffle-thehive-initial-error.png){: w="420" .left }
+
+Looking for solutions, I browsed through the other settings and switched to the advanced tab which is all the inputs but formatted in JSON. This was a long and arduous process. I had to trial and error and figured out through searching up the error codes from TheHive app that they have documentation on required fields and their type of inputs [here.](https://docs.strangebee.com/thehive/api-docs/#tag/Alert/operation/Create%)  
 
 ![Desktop View](/assets/posts/SOARSIEM/shuffle-thehive-initial-body.png)
 _Initial json_
@@ -155,7 +156,7 @@ Running the workflow then logging into the Analyst user account on My Organizati
 
 ### Email Alerts
 
-![Desktop View](/assets/posts/SOARSIEM/shuffle-email-attribute.png){: w="200" .right }  
+![Desktop View](/assets/posts/SOARSIEM/shuffle-email-attribute.png){: w="225" .right }  
 This portion was the easiest. 3 easy-to-fill fields and I used the same attributes used within TheHive app configuration. I assume for Google or Outlook addresses there would have to be extra authentication. The follow are successful runs of not only the workflow, but the temporary email receiving it as well.
 ![Desktop View](/assets/posts/SOARSIEM/shuffle-email-final-1.png){: .left }
 ![Desktop View](/assets/posts/SOARSIEM/shuffle-email-final-2.png)
@@ -165,3 +166,32 @@ This portion was the easiest. 3 easy-to-fill fields and I used the same attribut
 ![Desktop View](/assets/posts/SOARSIEM/shuffle-workflow-1.png)
 
 ## Challenge - Configuring Active Response prompts to SSH Attack
+
+For this section, I wanted to take this further by completing the following objectives.  
+
+1. Create another Wazuh Agent with all inbound communications open.
+2. Instead of sending hashes, send IP addresses that try to scan/connect with said Agent
+3. Configure custom alerts to send to TheHive manager for the Analyst Account
+4. Create Active Response command that adds an IP address to the host' IP tables to be dropped
+5. Configure the email app within Shuffle to ask user whether they want to block the IP address or not. 
+
+### Infrastructure
+
+_insert network diagram here_
+- Other Wazuh Agent is an Ubuntu (insert version number here) Digital Ocean Droplet.
+- Added the communication steps for active response 
+
+### Blah (please add additional headers + orgnaization here)
+
+The other Wazuh Agent, I set up as a Droplet with Ubuntu 25.04 x64. Because I'm opening all communications to genuine bot scanning traffic, I did not want to host on-prem via VirtualBox VM to avoid DOS attacks to my host machine and the rest of my family's devices.  
+![Desktop View](/assets/posts/SOARSIEM/challenge-other-droplet.png)  
+I preemptively made a firewall that opens all connections, but will only implement it for testing.
+![Desktop View](/assets/posts/SOARSIEM/challenge-other-droplet-firewall.png)
+ 
+ In order to configure third party apps to perform actions from Wazuh, I need to authenticate my connect via a JWT. Following (this link)[https://documentation.wazuh.com/current/user-manual/api/getting-started.html#understanding-the-wazuh-server-api-request-and-response] there is a curl command that can be used to establish the JWT authenticated session. Replacing localhost with the IP address of the Wazuh Manager.
+ ```bash
+ curl -k -X GET "https://localhost:55000/agents/summary/os?pretty=true" -H  "Authorization: Bearer $TOKEN"
+ ```
+ 
+ <!-- rewatch vidoe that includes curl link --> 
+ 
