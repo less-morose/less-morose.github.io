@@ -1,8 +1,9 @@
 ---
 title: SOAR/SIEM Automation Project
-date: 2025-08-14 00:00:00 +/-0500
-categories: [PersonalProject]
-tags: [idkwhattoputhere]     # TAG names should always be lowercase
+date: 2025-08-31 00:00:00 +/-0500
+description:  Ingesting Sysmon telemetry to Wazuh agents and utilizing Shuffle's automation to automatically configure and send alerts to TheHive, checking hashes and IPs with VirusTotal's database, and utilizing user input to finalize active response commands to requisite agents via email.
+categories: [Personal Projects]
+tags:   # TAG names should always be lowercase
 ---
 ## Mimikatz Workflow
 
@@ -180,25 +181,25 @@ For this section, I wanted to take this further by completing the following obje
 
 ### Infrastructure
 
-_insert network diagram here_
-- Other Wazuh Agent is an Ubuntu (insert version number here) Digital Ocean Droplet.
+![Desktop View](/assets/posts/SOARSIEM/post-response-network-diagram.png)
+- Other Wazuh Agent is an Ubuntu 22.04 x64 Digital Ocean Droplet.
 - Added the communication steps for active response 
 
 ### Initial Steps
 
-The other Wazuh Agent, I set up as a Droplet with Ubuntu 25.04 x64. Because I'm opening all communications to genuine bot scanning traffic, I did not want to host on-prem via VirtualBox VM to avoid DOS attacks to my host machine and the rest of my family's devices.  
+Because I'm opening all communications to genuine bot scanning traffic, I did not want to host on-prem via VirtualBox VM to avoid DOS attacks to my host machine and the rest of my family's devices.  
 ![Desktop View](/assets/posts/SOARSIEM/challenge-other-droplet.png)  
 I preemptively made a firewall that opens all connections, but will only implement it for testing.
 ![Desktop View](/assets/posts/SOARSIEM/challenge-other-droplet-firewall.png)
  
-## Push different alerts  
+### Push different alerts  
  
  To address objective #2, instead of pushing alerts that trigger the Mimikatz Rule ID (100002), I replaced the rule tag with level tags and set it to level 5 alerts.  
  ![Desktop View](/assets/posts/SOARSIEM/final-rule-replace.png)  
  
-## Workflow
+### Workflow
 
-### Http App - curl
+#### Http App - curl
 
 ![Desktop View](/assets/posts/SOARSIEM/final-workflow-diagram.png)  
 In order to configure third party apps to perform actions from Wazuh, I need to authenticate my connect via a JWT. Following [this link](https://documentation.wazuh.com/current/user-manual/api/getting-started.html#understanding-the-wazuh-server-api-request-and-response){: target="_blank"} there is a curl command that can be used to establish the JWT authenticated session. The localhost would be replaced with the IP address of the Wazuh Manager.
@@ -208,12 +209,12 @@ TOKEN=$(curl -u <WAZUH_API_USER>:<WAZUH_API_PASSWORD> -k -X POST "https://localh
 This token is established alongside the "payload" i.e the specific commands and alerts you would tell Wazuh to execute/look for on relevant agent IDs. There is an option to include the Wazuh Shuffle App within the workload itself, so the Http app acts as the TOKEN, and the Wazuh Shuffle App acts as the payload and is responsible for its delivery. I replaced the POST http request with GET I will call the Wazuh App rather than sending the payload. There is no inherent benefit within the scope of this project, but is just another way to establish connection to the Wazuh API. I also opened up port 55000 on the already existing firewall for the Wazuh Manager droplet in order to establish the JWT.  
 ![Desktop View](/assets/posts/SOARSIEM/final-curl-attributes.png)   
 
-### VirusTotal
+#### VirusTotal
 
 This will then output to the VirusTotal app, and I configured it to get an ip address report to see the attributes of the IP address of the attempted connection.  
 ![Desktop View](/assets/posts/SOARSIEM/final-workflow-virustotal.png)  
 
-### TheHive
+#### TheHive
 
 For TheHive, I had to mess with the JSON and keep in mind the required object types for each key. Within TheHive alerts, cases are divided between source, sourceRef, and type. Essentially, if I used static values rather than $exec values, alerts would not be able to be made despite there being different IP addresses or rules triggered.  
 In a bigger, more realistic environment, these would be used much more efficiently and would provide helpful insight to the analyst that takes the ticket. For this demo I replaced:
@@ -222,17 +223,17 @@ In a bigger, more realistic environment, these would be used much more efficient
 - type - the Rule Triggered  
 ![Desktop View](/assets/posts/SOARSIEM/final-workflow-thehive-json.png)  
 
-### Email 
+#### Email 
 
 Pretty much same as the Mimikatz one, just with the source IP variable instead and no host name, because the default wazuh rules do not include everything, unlike the custom Mimikatz rule.  
 ![Desktop View](/assets/posts/SOARSIEM/final-workflow-email.png)  
 
-### User input
+#### User input
 
-User Input triggers for emails automatically configure a link to allow/deny the continuation of the workflow, so the inputs are very simple.  
+User Input triggers for emails automatically configure two links to allow or deny the continuation of the workflow, so the inputs are very simple.  
 ![Desktop View](/assets/posts/SOARSIEM/final-workflow-userinput.png)  
 
-### Active Response via Wazuh Manager
+#### Active Response via Wazuh Manager
 
 Searching through Wazuh's Documentation, [agent-control](https://documentation.wazuh.com/current/user-manual/reference/tools/agent-control.html){: target="_blank"} and learning how to configure the [active response](https://documentation.wazuh.com/current/user-manual/capabilities/active-response/how-to-configure.html){: target="_blank"}  
 Within /var/ossec/etc/ossec.conf, there are active-response tags that are commented out. I removed them and created the following lines to block the source IP of an alert provided it is at least level 5.  
@@ -271,4 +272,14 @@ The source IP address that was chosen for this final workflow, was 194.0.234.19,
 
 ## Conclusion
 
-tbd lol
+The iptables of the ubuntu machine are blocking the source IPs, but have multiple entries that definitely clog up the entries. After letting it run after documenting the picture, it was blocking domain names rather than just source IPs which was weird.  
+My assumption is because I configured all logs to be pushed to the Wazuh Manager, the archives are disabled by default because it does not delete/refresh the logs. So even after I flush the ubuntu machine's iptables, the workflow attempts every step for EVERY level 5 log that is pushed to the manager. Not only that, many of these port scanners most likely trigger more than one rule, creating many unnecessary entries. I also found out that the default active response command rules include the description, 'Host Blocked by firewall-drop Active Response' so I had to filter that out and realize that not including a description to my custom active response firewall-drop command was not the best idea. Better to be more verbose than less in these cases. There are logs that say an active-response command was logged originating from the ossec.conf file, so it does work.  
+In addition, I already figured that active-response to each IP address ironically causes more alarm fatigue than without, but it is nice to somewhat simulate conditions without having the insight working in an enterprise environment would give.  
+
+## Additional Comments
+
+I used [MyDFIR's tutorial](https://www.youtube.com/watch?v=Lb_ukgtYK_U&list=PLEd_qaF8wpnXgdngqfsQtYYGM-IdtuxmC){: target="_blank"}  and tried as much as possible to not completely rely on the tutorial. I will say it's very hard to try to come up with ideas not doing projects of this scale and relevance, nor working in a technical environment. The most experience I had were school labs that pretty much held my hand where the most I can come up with is just using the software it introduces but outside of the project and tinkering with it. I will say, after doing the project, looking through all the documentation, and going through all the trial and error, I can safely explain each step of this project and where I can improve on as well.
+
+Many of the simple fields used in the video just did not work properly. I had to go through the advance view and edit the JSON body there itself. A culimination of many of these problems that I did not have prior experience with, and a lack of organization for both the main project and figuring out how to format the static site because I did not fully understand the scope of the project, made it a bit of an arduous process to go through. I actually almost gave up halfway and three-quarters of the way and had to take mini-breaks to avoid burnout.
+
+I will say this was very insightful. It makes me want to research how to develop YARA rules and enriches those personal databases, tuning and configuring rules in the context of proper Incident Response and for SOC Analysts, and makes me want to create an on-prem home lab with a focus on switches, or simulating with cisco packet tracer. This also made me more confident in navigating unknown topics and breaking down complex ideas into something more digestible. An underrated portion of these projects, is the determination and ability to not give up, and how documentation of these projects in a somewhat-coherent manner really helps with learning the content.
