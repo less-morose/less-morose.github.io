@@ -3,7 +3,7 @@ title: SOAR/SIEM Automation Project
 date: 2025-08-31 00:00:00 +/-0500
 description:  Ingesting Sysmon telemetry to Wazuh agents and utilizing Shuffle's automation to automatically configure and send alerts to TheHive, checking hashes and IPs with VirusTotal's database, and utilizing user input to finalize active response commands to requisite agents via email.
 categories: [Personal Projects]
-tags:   # TAG names should always be lowercase
+tags: [siem, soar, soc]
 ---
 ## Mimikatz Workflow
 
@@ -42,7 +42,7 @@ Following TheHive's installation/configuration steps through their [documentatio
 
 #### Wazuh Manager
 
-For testing purposes, all logs will be pushed to the Wazuh Manager whether or not it triggers an alert/rule. To do this, I must change certain settings within the ossec.conf file and the filebeats.yml file on the Wazuh Manager to reflect this.
+For testing purposes, all logs will be pushed to the Wazuh Manager whether or not it triggers an alert/rule. To do this, I must change certain settings within the ossec.conf file and the filebeats.yml file on the Wazuh Manager to reflect this.  
 ![Desktop View](/assets/posts/SOARSIEM/wazuh-manager-ossec.png)
 _Underlined terms were originally 'no'_  
 Logs are saved under /var/ossec/logs/archives . Because I am ingesting ALL logs rather than just alerts, I need to configure the Filebeat service to reflect that. Under /etc/filebeat/filebeat.yml there is an area to enable archives.
@@ -279,6 +279,6 @@ I used [MyDFIR's tutorial](https://www.youtube.com/watch?v=Lb_ukgtYK_U&list=PLEd
 
 A culimination of many of these problems that I did not have prior experience with, and a lack of organization for both the main project and figuring out how to format the static site because I did not fully understand the scope of the project, made it a bit of an arduous process to go through. I actually almost gave up halfway and three-quarters of the way and had to take mini-breaks to avoid burnout.
 
-I will say this was very insightful. It makes me want to research how to reverse engineer malware, develop YARA rules and how to enrich those personal databases, tuning and configuring rules in the context of proper incident response and for SOC Analysts, and makes me want to create an on-prem home lab with a focus on switches, or simulating with cisco packet tracer. This also made me more confident in navigating unknown topics and breaking down complex ideas into something more digestible. An underrated portion of these projects, is the determination and ability to not give up, and how documentation of these projects in a somewhat-coherent manner really helps with learning the content.
+I will say this was very insightful. It makes me want to research how to reverse engineer malware, develop YARA rules and how to enrich those personal databases, tuning and configuring rules in the context of proper incident response and for SOC Analysts, and makes me want to create an on-prem home lab with a focus on switches, or lsimulating with cisco packet tracer. This also made me more confident in navigating unknown topics and breaking down complex ideas into something more digestible. An underrated portion of these projects, is the determination and ability to not give up, and how documentation of these projects in a somewhat-coherent manner really helps with learning the content.
 
 Thank you for reading.
